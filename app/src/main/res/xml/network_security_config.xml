@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    网络安全配置。
+
+    默认策略收紧：全局禁止明文 HTTP，只信任系统 CA。
+    再针对内网站点单独开一个 domain-config：
+      1. trust-anchors 里加入打包在 res/raw/intranet_ca.crt 的内部根 CA，
+         这样自签证书在 WebView 眼里就是一张完全合法的证书 —— 不报 SSL
+         错误，不需要 onReceivedSslError + proceed()（那种做法等于接受
+         任意伪造证书，TLS 安全性归零）。
+      2. 同时保留 system，以便这个域名将来换成正规证书时无需改 App。
+      3. cleartextTrafficPermitted 暂时保留 true，是给「证书还没部署上去」
+         的过渡期留的退路。==> 证书上线并验证通过后，请改成 false。
+-->
+<network-security-config>
+
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">lms.sushisom.net</domain>
+        <!-- DNS 不可用时的 IP 直连兜底，证书 SAN 里已包含此 IP -->
+        <domain includeSubdomains="false">192.168.2.32</domain>
+        <trust-anchors>
+            <certificates src="@raw/intranet_ca" />
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+</network-security-config>

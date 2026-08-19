@@ -1,0 +1,12 @@
+<resources>
+    <!-- 品牌红，取自 logo -->
+    <color name="brand_red">#E31E24</color>
+    <color name="brand_red_dark">#B7161B</color>
+
+    <!-- 启动/加载过渡底色。与网页主题色保持一致，避免长时间白屏跳变。
+         如果 LMS 是深色主题，把这里和 ic_launcher_background 一起改掉即可。 -->
+    <color name="app_background">#FFFFFF</color>
+
+    <color name="text_primary">#1A1A1A</color>
+    <color name="text_secondary">#6B7280</color>
+</resources>

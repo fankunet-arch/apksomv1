@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!--
+  打包在 APK 内部的极简错误页（需求 3.5）。
+  取代 WebView 内核自带的「网页无法打开」默认错误页。
+
+  完全自包含：不引用任何外部资源，断网状态下也能正常渲染。
+  「重试」按钮跳转到自定义 scheme sushivip://retry，由 AppWebViewClient
+  的 shouldOverrideUrlLoading 拦截并触发重新加载。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>加载失败</title>
+  <style>
+    :root { --red:#E31E24; --ink:#1A1A1A; --muted:#6B7280; --line:#E5E7EB; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body { height:100%; margin:0; }
+    body {
+      display:flex; align-items:center; justify-content:center;
+      background:#FFFFFF; color:var(--ink);
+      font-family:-apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+      padding:24px;
+    }
+    .card { width:100%; max-width:460px; text-align:center; }
+    .mark {
+      width:64px; height:64px; margin:0 auto 22px;
+      border-radius:50%; border:3px solid var(--red);
+      display:flex; align-items:center; justify-content:center;
+      font-size:34px; font-weight:700; color:var(--red); line-height:1;
+    }
+    h1 { font-size:20px; font-weight:600; margin:0 0 10px; }
+    .msg { font-size:14px; color:var(--muted); line-height:1.6; margin:0 0 20px; }
+    .detail {
+      border:1px solid var(--line); border-radius:8px;
+      padding:12px 14px; margin-bottom:24px; text-align:left;
+      font-size:12px; color:var(--muted); line-height:1.7;
+      word-break:break-all;
+    }
+    .detail b { color:var(--ink); font-weight:600; }
+    .btn {
+      display:inline-block; min-width:150px;
+      padding:13px 28px; border-radius:8px;
+      background:var(--red); color:#fff;
+      font-size:15px; font-weight:600; text-decoration:none;
+    }
+    .btn:active { background:#B7161B; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">!</div>
+    <h1>页面加载失败</h1>
+    <p class="msg" id="msg">无法连接到服务器，请稍后重试。</p>
+    <div class="detail" id="detail" style="display:none"></div>
+    <a class="btn" href="sushivip://retry">重新加载</a>
+  </div>
+
+  <script>
+    (function () {
+      var q = {};
+      location.search.replace(/^\?/, '').split('&').forEach(function (kv) {
+        if (!kv) return;
+        var i = kv.indexOf('=');
+        var k = i < 0 ? kv : kv.slice(0, i);
+        var v = i < 0 ? '' : kv.slice(i + 1);
+        try { q[k] = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (e) { q[k] = v; }
+      });
+
+      if (q.msg) document.getElementById('msg').textContent = q.msg;
+
+      var rows = [];
+      if (q.code) rows.push('<b>错误码</b>：' + q.code);
+      if (q.url)  rows.push('<b>地址</b>：' + q.url.replace(/[<>&]/g, ''));
+      if (rows.length) {
+        var d = document.getElementById('detail');
+        d.innerHTML = rows.join('<br>');
+        d.style.display = 'block';
+      }
+    })();
+  </script>
+</body>
+</html>
