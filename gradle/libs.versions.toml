@@ -1,0 +1,19 @@
+# 依赖版本集中管理。升级 AGP/Kotlin 只需改这里，或用 Android Studio 的
+# "AGP Upgrade Assistant" 自动处理。
+[versions]
+agp = "8.9.1"
+kotlin = "2.1.0"
+coreKtx = "1.15.0"
+appcompat = "1.7.0"
+activity = "1.9.3"
+webkit = "1.12.1"
+
+[libraries]
+androidx-core-ktx   = { group = "androidx.core",      name = "core-ktx",     version.ref = "coreKtx" }
+androidx-appcompat  = { group = "androidx.appcompat", name = "appcompat",    version.ref = "appcompat" }
+androidx-activity   = { group = "androidx.activity",  name = "activity-ktx", version.ref = "activity" }
+androidx-webkit     = { group = "androidx.webkit",    name = "webkit",       version.ref = "webkit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android      = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

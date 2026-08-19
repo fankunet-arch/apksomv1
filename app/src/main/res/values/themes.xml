@@ -1,0 +1,19 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+        无 ActionBar、全屏沉浸。
+        windowBackground 设成与网页一致的底色，这样从点击图标到 WebView
+        首帧渲染出来的这段时间不会出现白屏闪烁。
+    -->
+    <style name="Theme.SushiVIP" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="colorPrimary">@color/brand_red</item>
+        <item name="colorPrimaryDark">@color/brand_red_dark</item>
+        <item name="colorAccent">@color/brand_red</item>
+
+        <!-- 系统栏由 WindowInsetsController 在代码里隐藏，这里先做成透明，
+             避免沉浸式生效前露出一条色带 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
+    </style>
+</resources>

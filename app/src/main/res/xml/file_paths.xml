@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 拍照上传时给系统相机 App 授权的写入目录，仅限应用私有缓存 -->
+<paths>
+    <cache-path
+        name="captures"
+        path="captures/" />
+</paths>

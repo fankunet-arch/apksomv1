@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 网络访问 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 加载前的网络可用性前置校验 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 网页端扫码 / 拍照所需 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- 设备没有相机也允许安装（扫码不可用，其余功能正常） -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.SushiVIP"
+        android:hardwareAccelerated="true"
+        android:networkSecurityConfig="@xml/network_security_config">
+
+        <!--
+            屏幕方向锁定。
+            需求：pad 逆时针旋转横放，充电口朝右。
+
+            "landscape" 对应 Surface.ROTATION_90，即设备从自然方向（竖屏，
+            充电口朝下）逆时针转 90 度 —— 充电口正好朝右，符合需求。
+
+            但「自然方向」是各家 OEM 自己定的：部分平板出厂就是横屏为自然
+            方向，此时 landscape 会变成充电口朝左。
+            === 真机实测若方向反了，把下面这行改成 "reverseLandscape" 即可，
+            === 不需要动任何代码。
+
+            configChanges 声明是必须的：不声明的话，任何配置变化（旋转、
+            分屏、字体大小、深浅色切换）都会重建 Activity，WebView 随之
+            整页重新加载，用户填到一半的表单直接丢失。
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.SushiVIP"
+
+            android:screenOrientation="landscape"
+
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode|density|fontScale">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            拍照上传用：<input type="file" capture> 会拉起系统相机，
+            相机 App 需要往我们的私有目录写文件，必须通过 FileProvider 授权 URI。
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>

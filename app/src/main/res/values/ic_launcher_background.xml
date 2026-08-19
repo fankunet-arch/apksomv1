@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 自适应图标的背景层。
+         品牌 logo 的镂空部分是透明的，衬白底才能还原成原始视觉；
+         换成红底会让镂空条纹「消失」。 -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>
