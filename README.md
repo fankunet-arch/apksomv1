@@ -3,6 +3,9 @@
 内网 LMS 站点 `https://lms.sushisom.net` 的原生容器（WebView 套壳）。
 需求原文见 [`doc/readme.md`](doc/readme.md)。
 
+> 📋 **要动手部署，请直接看 [`doc/执行说明.md`](doc/执行说明.md)** —— 从服务器配置到真机验收的完整分步手册，含故障速查表和避坑清单。
+> 本文档偏技术说明，讲的是「为什么这么做」。
+
 | 项 | 值 |
 |---|---|
 | applicationId | `net.sushisom.sushivip` |
