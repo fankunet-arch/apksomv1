@@ -34,6 +34,8 @@ class HostsProxyServer(private val hosts: Map<String, String>) {
     companion object {
         private const val TAG = "HostsProxy"
         private const val CONNECT_TIMEOUT_MS = 8000
+        /** 映射地址的连接超时取短一些，连不上要尽快退回 DNS 解析 */
+        private const val MAPPED_CONNECT_TIMEOUT_MS = 3000
         private const val BUFFER_SIZE = 16 * 1024
         private const val MAX_LINE = 8192
         private const val DEFAULT_PORT = 443
@@ -96,14 +98,8 @@ class HostsProxyServer(private val hosts: Map<String, String>) {
             }
 
             val (host, port) = parseHostPort(parts[1])
-            // 命中映射走指定 IP，未命中交回系统解析
-            val target = hosts[host.lowercase()] ?: host
-
-            upstream = Socket().apply {
-                connect(InetSocketAddress(target, port), CONNECT_TIMEOUT_MS)
-            }
+            upstream = connect(host, port)
             writeStatus(client.getOutputStream(), "200 Connection Established")
-            Log.i(TAG, "隧道建立 $host:$port -> $target:$port")
 
             // 双向盲转发。上行放到线程池，下行占用当前线程直到连接结束。
             val up = upstream
@@ -116,6 +112,30 @@ class HostsProxyServer(private val hosts: Map<String, String>) {
             runCatching { upstream?.close() }
             runCatching { client.close() }
         }
+    }
+
+    /**
+     * 优先连映射的 IP；连不上再退回系统解析。
+     *
+     * 这一层回退很重要：映射是编译期写死的，服务器一旦换了 IP，映射就成了
+     * 错误答案。有了回退，只要设备 DNS 正常，过时的映射也不会把应用堵死。
+     */
+    private fun connect(host: String, port: Int): Socket {
+        val mapped = hosts[host.lowercase()]
+        if (mapped != null) {
+            try {
+                val socket = Socket()
+                socket.connect(InetSocketAddress(mapped, port), MAPPED_CONNECT_TIMEOUT_MS)
+                Log.i(TAG, "隧道建立(内置映射) $host:$port -> $mapped:$port")
+                return socket
+            } catch (e: IOException) {
+                Log.w(TAG, "映射地址 $mapped:$port 连不上，退回系统解析: ${e.message}")
+            }
+        }
+        val socket = Socket()
+        socket.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
+        Log.i(TAG, "隧道建立(系统解析) $host:$port")
+        return socket
     }
 
     private fun parseHostPort(raw: String): Pair<String, Int> {
