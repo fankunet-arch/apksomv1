@@ -15,13 +15,30 @@
 (function (global) {
   'use strict';
 
-  var UA_PATTERN = /SushiVIP\/([\d.]+)/;
+  // 版本号可能带构建类型后缀：debug 包是 "1.0.0-debug"，release 包是 "1.0.0"。
+  // 这里必须用 [\w.-] 而不是 [\d.]，否则 "-debug" 会被截掉，两种包看起来一模一样 ——
+  // 而它们的 ANDROID_ID 是不同的，混用会导致设备档案全部对不上号。
+  var UA_PATTERN = /SushiVIP\/([\w.-]+)/;
   var WEB_ID_KEY = 'sushivip.web.deviceId';
 
-  /** 是否运行在 SushiVIP 原生容器内，以及容器版本号 */
+  /**
+   * 是否运行在 SushiVIP 原生容器内，以及容器版本与构建类型。
+   *
+   * @returns {{inContainer: boolean, version: string|null,
+   *            buildType: 'debug'|'release'|null, isDebug: boolean}}
+   */
   function container() {
     var m = UA_PATTERN.exec(global.navigator.userAgent || '');
-    return { inContainer: !!m, version: m ? m[1] : null };
+    if (!m) {
+      return { inContainer: false, version: null, buildType: null, isDebug: false };
+    }
+    var isDebug = /-debug$/.test(m[1]);
+    return {
+      inContainer: true,
+      version: m[1],                              // "1.0.0" 或 "1.0.0-debug"
+      buildType: isDebug ? 'debug' : 'release',
+      isDebug: isDebug
+    };
   }
 
   /**
@@ -99,6 +116,7 @@
     var info = {
       '运行在容器内': c.inContainer,
       '容器版本': c.version,
+      '包类型': c.buildType,
       '安全上下文(HTTPS)': global.isSecureContext,
       'AppBridge 可用': !!(global.AppBridge && global.AppBridge.getDeviceId),
       '相机 API 可用': cameraSupported(),
@@ -112,6 +130,12 @@
       info['设备ID'] = '获取失败: ' + e.message;
     }
     if (global.console && console.table) console.table(info);
+
+    // debug 包与 release 包由不同签名派生 ANDROID_ID，取到的设备 ID 不同。
+    // 拿 debug 包采集的 ID 去建生产档案，换正式包后会全部失效。
+    if (c.isDebug && info['设备ID'] && info['设备ID'].source === 'native' && global.console) {
+      console.warn('[SushiVIP] 当前是 debug 包，设备 ID 与正式包不同，请勿用于正式建档');
+    }
     return info;
   }
 

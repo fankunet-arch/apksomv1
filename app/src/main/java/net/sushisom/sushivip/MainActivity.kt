@@ -74,6 +74,16 @@ class MainActivity : AppCompatActivity() {
         loadTargetUrlOrPromptNoNetwork()
     }
 
+    /**
+     * WebView 的 Cookie 是攒一批再定期落盘的，进程被系统回收时最近一次写入
+     * 可能还停留在内存里。登录态是一个 12 小时的会话 Cookie，这里主动落一次盘，
+     * 避免用户把应用划走之后回来还要重新登录。
+     */
+    override fun onPause() {
+        super.onPause()
+        CookieManager.getInstance().flush()
+    }
+
     override fun onDestroy() {
         // 悬空的文件选择回调要结掉，否则 WebView 内部状态残留
         if (::fileChooserDelegate.isInitialized) fileChooserDelegate.cancelPending()
