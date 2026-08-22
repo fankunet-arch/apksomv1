@@ -64,7 +64,7 @@ TLS 安全性归零，本项目明确拒绝这么做，见 `AppWebViewClient`）
 网站 → 站点设置 → SSL → **「其他证书」**标签页，粘贴上面两项，保存后开启「强制HTTPS」。
 
 > 不要用 Let's Encrypt 标签页 —— 它需要走公网 80 端口验证域名，
-> `lms.sushisom.net` 是内网 DNS 重写出来的空域名，验证必然失败。
+> `lms.sushisom.net` 由路由器的 DNS 重写解析到内网主机，公网上并不存在，验证必然失败。
 
 **3. 放行端口**：宝塔 → 安全 → 放行 443；`sudo ufw allow 443/tcp`
 
@@ -88,17 +88,6 @@ cp certs-lms.sushisom.net/ca.crt app/src/main/res/raw/intranet_ca.crt
 **6. 收紧配置**：证书验证通过后，把
 `app/src/main/res/xml/network_security_config.xml` 里的
 `cleartextTrafficPermitted="true"` 改成 `false`，彻底关掉明文回退。
-
-### ⚠️ 内网 DNS 依赖
-
-域名靠内网 DNS 重写生效，因此**平板必须解析得到内网 DNS**：
-
-1. 确认设备所连 Wi-Fi 的 DHCP 下发了内网 DNS 服务器；
-2. 关掉 Android 的「私人 DNS」（设置 → 网络和互联网 → 私人 DNS → **关闭**）。
-   设成「自动」会走公共 DoT 服务，**绕过内网 DNS**，域名直接解析失败。
-
-证书 SAN 里已包含 `192.168.2.32`，万一 DNS 不可靠，把 `BASE_URL`
-改成 `https://192.168.2.32/` 即可，证书校验照样通过。
 
 ---
 

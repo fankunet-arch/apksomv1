@@ -22,7 +22,7 @@
 
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">lms.sushisom.net</domain>
-        <!-- DNS 不可用时的 IP 直连兜底，证书 SAN 里已包含此 IP -->
+        <!-- 同一台主机的 IP 直连入口，证书 SAN 里已包含 -->
         <domain includeSubdomains="false">192.168.2.32</domain>
         <trust-anchors>
             <certificates src="@raw/intranet_ca" />

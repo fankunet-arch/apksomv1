@@ -26,8 +26,8 @@ android {
         // Chromium 只在安全上下文下提供 getUserMedia，http:// 页面里
         // navigator.mediaDevices 直接是 undefined，网页扫码无法工作。
         //
-        // 若内网 DNS 不可用，可临时改为 https://192.168.2.32（证书 SAN
-        // 里已经带上了这个 IP），HOST_WHITELIST 也要同步加上。
+        // 域名由路由器的 DNS 重写解析到内网主机，公网不存在。
+        // 证书 SAN 里同时带了 IP，因此 https://192.168.2.32 也可直接访问。
         // ------------------------------------------------------------------
         buildConfigField("String", "BASE_URL", "\"https://lms.sushisom.net/\"")
 

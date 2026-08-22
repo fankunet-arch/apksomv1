@@ -154,7 +154,7 @@ class AppWebViewClient(
     }
 
     private fun describeError(code: Int, fallback: String?): String = when (code) {
-        ERROR_HOST_LOOKUP -> "无法解析服务器地址（内网 DNS 可能不可用）"
+        ERROR_HOST_LOOKUP -> "无法解析服务器地址"
         ERROR_CONNECT -> "无法连接到服务器"
         ERROR_TIMEOUT -> "连接服务器超时"
         ERROR_IO -> "网络读写失败"
