@@ -38,6 +38,9 @@ android {
             ?: "https://lms.sushisom.net/"
         buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
 
+        // 诊断用：完全绕过 DNS 的直连地址，与 BASE_URL 指向同一台主机
+        buildConfigField("String", "FALLBACK_IP", "\"192.168.2.32\"")
+
         // JS Bridge 域名白名单：只有这些 host 上的页面能拿到 AppBridge，
         // 且 WebView 只允许在这些 host 内部导航（站外链接交给系统浏览器）。
         buildConfigField(

@@ -38,6 +38,8 @@
       word-break:break-all;
     }
     .detail b { color:var(--ink); font-weight:600; }
+    #diag { white-space:pre-line; margin-top:-12px; }
+    #diag .t { color:var(--ink); font-weight:600; display:block; margin-bottom:4px; }
     .btn {
       display:inline-block; min-width:150px;
       padding:13px 28px; border-radius:8px;
@@ -53,6 +55,7 @@
     <h1>页面加载失败</h1>
     <p class="msg" id="msg">无法连接到服务器，请稍后重试。</p>
     <div class="detail" id="detail" style="display:none"></div>
+    <div class="detail" id="diag"><span class="t">网络诊断</span>正在检测…</div>
     <a class="btn" href="sushivip://retry">重新加载</a>
   </div>
 
@@ -78,6 +81,14 @@
         d.style.display = 'block';
       }
     })();
+
+    // 由原生侧在诊断完成后调用（见 MainActivity.runDiagnostics）
+    window.__setDiag = function (text) {
+      var d = document.getElementById('diag');
+      if (!d) return;
+      d.innerHTML = '<span class="t">网络诊断</span>';
+      d.appendChild(document.createTextNode(text));
+    };
   </script>
 </body>
 </html>

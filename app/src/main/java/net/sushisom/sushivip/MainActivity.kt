@@ -24,10 +24,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import net.sushisom.sushivip.bridge.AppBridge
 import net.sushisom.sushivip.databinding.ActivityMainBinding
+import net.sushisom.sushivip.network.ConnectivityDiagnostics
 import net.sushisom.sushivip.network.NetworkChecker
 import net.sushisom.sushivip.web.AppWebChromeClient
 import net.sushisom.sushivip.web.AppWebViewClient
 import net.sushisom.sushivip.web.FileChooserDelegate
+import org.json.JSONObject
 import java.net.URLEncoder
 
 class MainActivity : AppCompatActivity() {
@@ -313,6 +315,30 @@ class MainActivity : AppCompatActivity() {
             append("&url=").append(URLEncoder.encode(failingUrl, "UTF-8"))
         }
         binding.webView.loadUrl(url)
+        runDiagnostics(failingUrl)
+    }
+
+    /**
+     * 错误页展示后，在子线程做一次网络自助诊断，把结论回填到页面上。
+     *
+     * 这样现场无需连电脑抓 adb，就能当场区分「只是 DNS 解析不了」和
+     * 「本应用根本没有网络」——两者的错误码相同，处理方式却完全相反。
+     */
+    private fun runDiagnostics(failingUrl: String) {
+        val target = failingUrl.ifBlank { BuildConfig.BASE_URL }
+        Thread {
+            val report = ConnectivityDiagnostics.describe(target, BuildConfig.FALLBACK_IP)
+            Log.i(TAG, "网络诊断结果:\n$report")
+            runOnUiThread {
+                // 本地错误页加载极快，这里留一点余量确保 __setDiag 已定义
+                binding.webView.postDelayed({
+                    binding.webView.evaluateJavascript(
+                        "window.__setDiag && window.__setDiag(${JSONObject.quote(report)})",
+                        null
+                    )
+                }, 200)
+            }
+        }.start()
     }
 
     private fun reload() {
