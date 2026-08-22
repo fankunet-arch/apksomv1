@@ -29,7 +29,14 @@ android {
         // 域名由路由器的 DNS 重写解析到内网主机，公网不存在。
         // 证书 SAN 里同时带了 IP，因此 https://192.168.2.32 也可直接访问。
         // ------------------------------------------------------------------
-        buildConfigField("String", "BASE_URL", "\"https://lms.sushisom.net/\"")
+        // 默认走域名。域名解析不了时，可以在命令行直接覆盖成 IP，无需改文件：
+        //   ./gradlew assembleDebug -PbaseUrl=https://192.168.2.32/
+        // 证书 SAN 里已包含该 IP，TLS 校验照样通过。
+        // 注意：改用 IP 前请先确认 nginx 按 IP 访问命中的是本站点而非默认站点，
+        // 详见 doc/执行说明.md 故障表 C。
+        val baseUrl = (project.findProperty("baseUrl") as String?)
+            ?: "https://lms.sushisom.net/"
+        buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
 
         // JS Bridge 域名白名单：只有这些 host 上的页面能拿到 AppBridge，
         // 且 WebView 只允许在这些 host 内部导航（站外链接交给系统浏览器）。
