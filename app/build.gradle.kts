@@ -41,6 +41,23 @@ android {
         // 诊断用：完全绕过 DNS 的直连地址，与 BASE_URL 指向同一台主机
         buildConfigField("String", "FALLBACK_IP", "\"192.168.2.32\"")
 
+        // ------------------------------------------------------------------
+        // 内置 hosts 映射，格式 "域名=IP[,域名=IP]"。
+        //
+        // 现场平板由路由器下发了三个 DNS，排在第一位的是 IPv6 链路本地地址，
+        // 那台服务器上没有本域名的记录，会返回 NXDOMAIN。这是个权威否定答复，
+        // 系统解析器据此直接失败，不会再去问后面持有记录的 192.168.2.31。
+        // 应用因此完全无法解析域名，而 Chrome 用自带解析器跳过了该服务器，
+        // 表现为"浏览器能开、App 打不开"。
+        //
+        // 这里让 WebView 走应用内的 CONNECT 代理，把解析这一步接管过来，
+        // 从而不依赖设备的任何 DNS 配置。详见 HostsProxyServer。
+        // 置空即可关闭：./gradlew assembleDebug -PhostsOverride=
+        // ------------------------------------------------------------------
+        val hostsOverride = (project.findProperty("hostsOverride") as String?)
+            ?: "lms.sushisom.net=192.168.2.32"
+        buildConfigField("String", "HOSTS_OVERRIDE", "\"$hostsOverride\"")
+
         // JS Bridge 域名白名单：只有这些 host 上的页面能拿到 AppBridge，
         // 且 WebView 只允许在这些 host 内部导航（站外链接交给系统浏览器）。
         buildConfigField(

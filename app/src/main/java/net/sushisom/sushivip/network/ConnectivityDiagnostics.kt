@@ -26,11 +26,13 @@ object ConnectivityDiagnostics {
     private const val TIMEOUT_MS = 3000
     private const val HTTPS_PORT = 443
 
-    fun describe(targetUrl: String, fallbackIp: String): String {
+    fun describe(targetUrl: String, fallbackIp: String, hostsOverride: String = ""): String {
         val host = runCatching { URI(targetUrl).host }.getOrNull()
             ?: return "无法解析目标地址格式：$targetUrl"
 
         val lines = mutableListOf<String>()
+        if (hostsOverride.isNotBlank()) lines += "内置 hosts：$hostsOverride"
+
 
         // 1) 域名解析
         val addresses = runCatching {

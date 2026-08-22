@@ -20,11 +20,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.webkit.ProxyConfig
+import androidx.webkit.ProxyController
+import androidx.webkit.WebViewFeature
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import net.sushisom.sushivip.bridge.AppBridge
 import net.sushisom.sushivip.databinding.ActivityMainBinding
 import net.sushisom.sushivip.network.ConnectivityDiagnostics
+import net.sushisom.sushivip.network.HostsProxyServer
 import net.sushisom.sushivip.network.NetworkChecker
 import net.sushisom.sushivip.web.AppWebChromeClient
 import net.sushisom.sushivip.web.AppWebViewClient
@@ -41,6 +45,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var fileChooserDelegate: FileChooserDelegate
+
+    /** 应用内置 hosts 用的本地代理，未启用内置映射时为 null */
+    private var hostsProxy: HostsProxyServer? = null
 
     /** 网页发起的相机请求，等 Android 运行时权限结果出来后再决定 grant/deny */
     private var pendingWebPermissionRequest: PermissionRequest? = null
@@ -71,9 +78,8 @@ class MainActivity : AppCompatActivity() {
         setupWebView()
         setupBackNavigation()
 
-        // 需求 3.5：加载前先做网络前置校验，无网络直接阻断，不让 WebView
-        // 去撞一个必然失败的请求（那样会先白屏几秒再报错，体验更差）。
-        loadTargetUrlOrPromptNoNetwork()
+        // 内置 hosts 生效后再加载，否则首次请求会赶在代理生效之前发出。
+        startHostsProxyThenLoad()
     }
 
     /**
@@ -86,7 +92,66 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().flush()
     }
 
+    /**
+     * 启用内置 hosts：拉起本地 CONNECT 代理并让 WebView 走它，成功后再加载页面。
+     *
+     * setProxyOverride 是**异步**的，必须等回调到达才能 loadUrl —— 否则首次
+     * 请求会在代理生效前发出，仍旧走设备 DNS，白白失败一次。
+     *
+     * 任一环节不可用（未配置映射、WebView 不支持代理覆盖、端口起不来）都直接
+     * 退回普通加载，不让这个增强手段本身变成新的故障点。
+     */
+    private fun startHostsProxyThenLoad() {
+        val mapping = parseHostsOverride(BuildConfig.HOSTS_OVERRIDE)
+        if (mapping.isEmpty()) {
+            Log.i(TAG, "未配置内置 hosts，按常规方式加载")
+            loadTargetUrlOrPromptNoNetwork()
+            return
+        }
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+            Log.w(TAG, "当前 WebView 不支持代理覆盖，内置 hosts 无法生效")
+            loadTargetUrlOrPromptNoNetwork()
+            return
+        }
+
+        val proxy = HostsProxyServer(mapping)
+        val port = proxy.start()
+        if (port <= 0) {
+            loadTargetUrlOrPromptNoNetwork()
+            return
+        }
+        hostsProxy = proxy
+
+        val config = ProxyConfig.Builder()
+            .addProxyRule("127.0.0.1:$port")
+            .addDirect()   // 代理不可用时退回直连，不至于彻底断网
+            .build()
+
+        ProxyController.getInstance().setProxyOverride(
+            config,
+            ContextCompat.getMainExecutor(this)
+        ) {
+            Log.i(TAG, "内置 hosts 已生效: $mapping")
+            loadTargetUrlOrPromptNoNetwork()
+        }
+    }
+
+    /** 解析 "域名=IP,域名=IP" 形式的配置 */
+    private fun parseHostsOverride(spec: String): Map<String, String> =
+        spec.split(',')
+            .mapNotNull { entry ->
+                val kv = entry.split('=')
+                if (kv.size == 2 && kv[0].isNotBlank() && kv[1].isNotBlank()) {
+                    kv[0].trim().lowercase() to kv[1].trim()
+                } else {
+                    null
+                }
+            }
+            .toMap()
+
     override fun onDestroy() {
+        hostsProxy?.stop()
+        hostsProxy = null
         // 悬空的文件选择回调要结掉，否则 WebView 内部状态残留
         if (::fileChooserDelegate.isInitialized) fileChooserDelegate.cancelPending()
         pendingWebPermissionRequest?.deny()
@@ -327,7 +392,9 @@ class MainActivity : AppCompatActivity() {
     private fun runDiagnostics(failingUrl: String) {
         val target = failingUrl.ifBlank { BuildConfig.BASE_URL }
         Thread {
-            val report = ConnectivityDiagnostics.describe(target, BuildConfig.FALLBACK_IP)
+            val report = ConnectivityDiagnostics.describe(
+                target, BuildConfig.FALLBACK_IP, BuildConfig.HOSTS_OVERRIDE
+            )
             Log.i(TAG, "网络诊断结果:\n$report")
             runOnUiThread {
                 // 本地错误页加载极快，这里留一点余量确保 __setDiag 已定义
