@@ -369,15 +369,29 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * 需求 3.5：绝不能让 WebView 显示内核自带的错误页。
-     * 这里加载打包在 assets 里的极简错误页，把错误码和原因通过 query 传进去。
+     * 这里加载打包在 assets 里的极简错误页。
+     *
+     * 【只传错误码，不传地址和文字说明】
+     * 容器的意义之一就是让使用者感知不到背后是个网站。错误页上一旦出现
+     * 内网地址，套壳就白做了；具体成因也不该暴露给门店人员。
+     * 所以界面上只留一个编号，编号到成因的对照表放在
+     * doc/执行说明.md 的故障速查表里，由运维查阅。
+     *
+     * 完整信息（含地址与原因）只写进 logcat，用
+     *   adb logcat -s MainActivity AppWebViewClient Diagnostics
+     * 取用。
      */
     private fun showErrorPage(code: Int, description: String, failingUrl: String) {
         hideLoading()
+        Log.w(TAG, "加载失败 code=$code reason=$description url=$failingUrl")
+
         val url = buildString {
             append(ERROR_PAGE)
             append("?code=").append(code)
-            append("&msg=").append(URLEncoder.encode(description, "UTF-8"))
-            append("&url=").append(URLEncoder.encode(failingUrl, "UTF-8"))
+            // debug 包附带详情便于联调；release 包一律不带
+            if (BuildConfig.DEBUG) {
+                append("&detail=").append(URLEncoder.encode("$description\n$failingUrl", "UTF-8"))
+            }
         }
         binding.webView.loadUrl(url)
         runDiagnostics(failingUrl)
@@ -396,6 +410,9 @@ class MainActivity : AppCompatActivity() {
                 target, BuildConfig.FALLBACK_IP, BuildConfig.HOSTS_OVERRIDE
             )
             Log.i(TAG, "网络诊断结果:\n$report")
+            // 诊断结论含域名与内网 IP，只允许出现在 debug 包的界面上。
+            // release 包仅写日志，由运维通过 adb logcat -s Diagnostics 取用。
+            if (!BuildConfig.DEBUG) return@Thread
             runOnUiThread {
                 // 本地错误页加载极快，这里留一点余量确保 __setDiag 已定义
                 binding.webView.postDelayed({
