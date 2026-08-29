@@ -3,9 +3,17 @@
   打包在 APK 内部的极简错误页（需求 3.5）。
   取代 WebView 内核自带的「网页无法打开」默认错误页。
 
+  【只显示错误码】
+  容器的意义之一是让使用者感知不到背后是个网站。所以这个页面上：
+    - 绝不显示目标网址
+    - 不显示具体的失败原因文字
+  只留一个编号，由门店人员报给运维，运维查 doc/执行说明.md 的对照表。
+  完整信息（地址、原因、网络诊断）只写进 logcat。
+
+  debug 包会额外接收 detail 与诊断结论，方便联调；release 包一律不带。
+
   完全自包含：不引用任何外部资源，断网状态下也能正常渲染。
-  「重试」按钮跳转到自定义 scheme sushivip://retry，由 AppWebViewClient
-  的 shouldOverrideUrlLoading 拦截并触发重新加载。
+  「重新加载」跳转自定义 scheme sushivip://retry，由 AppWebViewClient 拦截。
 -->
 <html lang="zh-CN">
 <head>
@@ -22,38 +30,48 @@
       font-family:-apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
       padding:24px;
     }
-    .card { width:100%; max-width:460px; text-align:center; }
+    .card { width:100%; max-width:420px; text-align:center; }
     .mark {
       width:64px; height:64px; margin:0 auto 22px;
       border-radius:50%; border:3px solid var(--red);
       display:flex; align-items:center; justify-content:center;
       font-size:34px; font-weight:700; color:var(--red); line-height:1;
     }
-    h1 { font-size:20px; font-weight:600; margin:0 0 10px; }
-    .msg { font-size:14px; color:var(--muted); line-height:1.6; margin:0 0 20px; }
-    .detail {
-      border:1px solid var(--line); border-radius:8px;
-      padding:12px 14px; margin-bottom:24px; text-align:left;
-      font-size:12px; color:var(--muted); line-height:1.7;
-      word-break:break-all;
+    h1 { font-size:20px; font-weight:600; margin:0 0 12px; }
+    .msg { font-size:14px; color:var(--muted); line-height:1.7; margin:0 0 22px; }
+    .code {
+      display:inline-block; margin:0 0 26px;
+      padding:10px 22px; border:1px solid var(--line); border-radius:8px;
+      font-size:15px; color:var(--ink); letter-spacing:.5px;
     }
-    .detail b { color:var(--ink); font-weight:600; }
+    .code b { font-weight:600; font-variant-numeric:tabular-nums; }
     .btn {
-      display:inline-block; min-width:150px;
-      padding:13px 28px; border-radius:8px;
+      display:block; margin:0 auto;
+      max-width:220px; padding:13px 28px; border-radius:8px;
       background:var(--red); color:#fff;
       font-size:15px; font-weight:600; text-decoration:none;
     }
     .btn:active { background:#B7161B; }
+    /* 仅 debug 包会填充内容，release 包始终为空且不显示 */
+    .debug {
+      margin-top:22px; padding:12px 14px;
+      border:1px dashed var(--line); border-radius:8px;
+      text-align:left; font-size:12px; color:var(--muted);
+      line-height:1.7; white-space:pre-line; word-break:break-all;
+    }
+    .debug .t { display:block; color:var(--red); font-weight:600; margin-bottom:4px; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="mark">!</div>
     <h1>页面加载失败</h1>
-    <p class="msg" id="msg">无法连接到服务器，请稍后重试。</p>
-    <div class="detail" id="detail" style="display:none"></div>
+    <p class="msg">请稍后重试。<br>若反复出现，请把下方编号告知管理员。</p>
+    <div class="code" id="code">错误码：<b>—</b></div>
     <a class="btn" href="sushivip://retry">重新加载</a>
+
+    <div class="debug" id="detail" style="display:none"></div>
+    <div class="debug" id="diag" style="display:none"></div>
   </div>
 
   <script>
@@ -67,17 +85,28 @@
         try { q[k] = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (e) { q[k] = v; }
       });
 
-      if (q.msg) document.getElementById('msg').textContent = q.msg;
+      // 唯一展示给使用者的信息
+      var code = (q.code || '').replace(/[^\-0-9]/g, '');
+      document.getElementById('code').innerHTML =
+        '错误码：<b>' + (code || '—') + '</b>';
 
-      var rows = [];
-      if (q.code) rows.push('<b>错误码</b>：' + q.code);
-      if (q.url)  rows.push('<b>地址</b>：' + q.url.replace(/[<>&]/g, ''));
-      if (rows.length) {
+      // 仅 debug 包会带 detail 参数
+      if (q.detail) {
         var d = document.getElementById('detail');
-        d.innerHTML = rows.join('<br>');
+        d.innerHTML = '<span class="t">DEBUG · 详情</span>';
+        d.appendChild(document.createTextNode(q.detail));
         d.style.display = 'block';
       }
     })();
+
+    // 由原生侧在诊断完成后调用（仅 debug 包，见 MainActivity.runDiagnostics）
+    window.__setDiag = function (text) {
+      var d = document.getElementById('diag');
+      if (!d) return;
+      d.innerHTML = '<span class="t">DEBUG · 网络诊断</span>';
+      d.appendChild(document.createTextNode(text));
+      d.style.display = 'block';
+    };
   </script>
 </body>
 </html>

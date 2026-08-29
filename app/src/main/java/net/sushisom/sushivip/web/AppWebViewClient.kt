@@ -32,6 +32,15 @@ class AppWebViewClient(
 
         /** 内置错误页里「重试」按钮使用的自定义 scheme */
         const val SCHEME_INTERNAL = "sushivip"
+
+        // 证书类错误的自定义错误码。
+        // 界面上只显示编号、不显示文字，所以每种成因必须占一个独立编号，
+        // 否则运维只拿到编号无法区分。对照表见 doc/执行说明.md 故障速查。
+        const val ERROR_SSL_UNTRUSTED = -1001
+        const val ERROR_SSL_IDMISMATCH = -1002
+        const val ERROR_SSL_EXPIRED = -1003
+        const val ERROR_SSL_NOT_YET_VALID = -1004
+        const val ERROR_SSL_OTHER = -1005
         private const val ACTION_RETRY = "retry"
 
         private val WHITELIST: Set<String> = BuildConfig.HOST_WHITELIST.toSet()
@@ -141,20 +150,20 @@ class AppWebViewClient(
     ) {
         handler.cancel()
         hasError = true
-        val reason = when (error.primaryError) {
-            SslError.SSL_EXPIRED -> "证书已过期"
-            SslError.SSL_IDMISMATCH -> "证书域名不匹配"
-            SslError.SSL_NOTYETVALID -> "证书尚未生效（请检查设备日期）"
-            SslError.SSL_UNTRUSTED -> "证书不受信任（APK 内置的 CA 可能已失效）"
-            SslError.SSL_DATE_INVALID -> "证书日期无效"
-            else -> "证书校验失败"
+        val (code, reason) = when (error.primaryError) {
+            SslError.SSL_EXPIRED -> ERROR_SSL_EXPIRED to "证书已过期"
+            SslError.SSL_IDMISMATCH -> ERROR_SSL_IDMISMATCH to "证书域名不匹配"
+            SslError.SSL_NOTYETVALID -> ERROR_SSL_NOT_YET_VALID to "证书尚未生效（检查设备日期）"
+            SslError.SSL_UNTRUSTED -> ERROR_SSL_UNTRUSTED to "证书不受信任（APK 内置 CA 与服务器证书签发者不一致）"
+            SslError.SSL_DATE_INVALID -> ERROR_SSL_EXPIRED to "证书日期无效"
+            else -> ERROR_SSL_OTHER to "证书校验失败"
         }
-        Log.e(TAG, "SSL 错误: $reason url=${error.url}")
-        onLoadError(-1000, "HTTPS $reason", error.url ?: "")
+        Log.e(TAG, "SSL 错误 code=$code reason=$reason url=${error.url}")
+        onLoadError(code, "HTTPS $reason", error.url ?: "")
     }
 
     private fun describeError(code: Int, fallback: String?): String = when (code) {
-        ERROR_HOST_LOOKUP -> "无法解析服务器地址（内网 DNS 可能不可用）"
+        ERROR_HOST_LOOKUP -> "无法解析服务器地址"
         ERROR_CONNECT -> "无法连接到服务器"
         ERROR_TIMEOUT -> "连接服务器超时"
         ERROR_IO -> "网络读写失败"
