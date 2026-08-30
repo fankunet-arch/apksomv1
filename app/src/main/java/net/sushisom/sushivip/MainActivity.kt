@@ -69,7 +69,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         enableImmersiveMode()
-        keepScreenOn()
 
         fileChooserDelegate = FileChooserDelegate(this) { onResult ->
             requestCameraPermission(onResult)
@@ -87,8 +86,22 @@ class MainActivity : AppCompatActivity() {
      * 可能还停留在内存里。登录态是一个 12 小时的会话 Cookie，这里主动落一次盘，
      * 避免用户把应用划走之后回来还要重新登录。
      */
+    /**
+     * WebView 的 Cookie 默认只在内存里，要 flush() 才写入磁盘。
+     * 熄屏或切后台之后进程随时可能被系统回收，不落盘的话这次会话的 Cookie
+     * 就没了 —— 现场表现就是「熄屏一会儿再打开要求重新登录」。
+     *
+     * onPause 与 onStop 都做一次：onPause 一定会被调用，onStop 覆盖
+     * 「切到后台后才被回收」的场景。flush() 是同步的，API 21+ 起取代了
+     * 已废弃的 CookieSyncManager。
+     */
     override fun onPause() {
         super.onPause()
+        CookieManager.getInstance().flush()
+    }
+
+    override fun onStop() {
+        super.onStop()
         CookieManager.getInstance().flush()
     }
 
@@ -187,10 +200,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 扫码/看板场景不希望屏幕自动熄灭 */
-    private fun keepScreenOn() {
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    }
+    // 【刻意不加 FLAG_KEEP_SCREEN_ON】
+    // 门店要求平板正常息屏省电。会话要能扛住息屏与进程回收，靠的是
+    // onPause/onStop 里把 Cookie 落盘（见下），而不是靠不息屏来回避问题。
+    // 曾经加过这个标志，与门店要求冲突，已移除，不要再加回来。
 
     // -----------------------------------------------------------------------
     // WebView 配置（需求 3.2 / 3.3 / 3.4）
