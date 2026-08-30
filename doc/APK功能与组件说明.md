@@ -236,19 +236,33 @@ adb logcat -s MainActivity AppWebViewClient Diagnostics HostsProxy
 
 ---
 
-## 七、需要网络 / 服务端侧配合的事项
+## 七、网络 / 服务端侧配合事项（现状）
 
-| # | 事项 | 归属 | 说明 |
+| # | 事项 | 归属 | 状态 |
 |---|---|---|---|
-| 1 | 站点必须跑 HTTPS | 运维 | 否则扫码功能无法实现（§3.2） |
-| 2 | 证书 SAN 必须含 `lms.sushisom.net` | 运维 | Chromium 只认 SAN，不读 CN |
-| 3 | DNS 只下发持有记录的服务器 | 网络 | 辅 DNS 留空，避免 NXDOMAIN 抢答（§3.5） |
-| 4 | 路由器不要下发 IPv6 DNS | 网络 | 同上 |
+| 1 | 站点跑 HTTPS | 运维 | ✅ 已部署。否则扫码无法实现（§3.2） |
+| 2 | 证书 SAN 含 `lms.sushisom.net` | 运维 | ✅ 已确认，同时含 `IP:192.168.2.32` |
+| 3 | DNS 只下发持有记录的服务器 | 网络 | ✅ 主 DNS 为 `192.168.2.31`；辅 DNS 需留空（§3.5） |
+| 4 | 路由器不下发 IPv6 DNS | 网络 | ✅ 已关闭 IPv6 通告 |
 | 5 | 防火墙放行 平板网段 → `192.168.2.32:443` | 网络 | 仅此一条，无出公网需求 |
-| 6 | 登录 Cookie 建议带 `Max-Age` | 后端 | 否则进程回收后必然丢失（§5） |
-| 7 | CORS 只能服务端解决 | 后端 | **原生 WebView 没有任何开关能关闭 CORS** |
-| 8 | UA 白名单要放行 `SushiVIP/1.0.0` | 后端 | 若站点有浏览器检测，别把容器拦在提示页 |
-| 9 | 新增下载 / `window.open` 功能前先通知 | 前端 | 容器未实现这两项，加了会**静默失败**（点击毫无反应） |
+| 6 | 登录 Cookie 带 `Max-Age` | 后端 | ✅ 已满足：`Max-Age=43200`（12 小时），非会话 Cookie，`flush()` 对其有效 |
+| 7 | CORS | 后端 | ✅ 不涉及 —— Pad、后台、接口全部同源 |
+| 8 | UA 白名单放行 `SushiVIP/1.0.0` | 后端 | ✅ 不涉及 —— 站点无任何 UA 检测 |
+| 9 | 新增下载 / `window.open` 功能前先通知 | 前端 | ✅ 已有自动化测试守着：`window.open`、`createObjectURL`、`<a download>`、`target="_blank"`、PDF 直链五项断言恒为零，加了即红 |
+
+### 7.1 本地代理对服务端完全透明
+
+内置 hosts 的 CONNECT 代理跑在**平板自己的进程里**，只做 TCP 盲转发，
+TLS 握手仍由 WebView 与 nginx 端到端完成。服务端看到的与不经代理时完全一致：
+
+| 服务端观察点 | 是否受影响 |
+|---|---|
+| `$_SERVER['HTTPS']` / `fastcgi_param HTTPS on` | ❌ 不受影响，仍正常识别为 HTTPS |
+| `$_SERVER['REMOTE_ADDR']` | ❌ 不受影响，**仍是平板真实 IP**，审计日志来源地址准确 |
+| SNI / `Host` 头 | ❌ 不受影响，仍是 `lms.sushisom.net` |
+| Cookie 的 `Secure` / `SameSite` | ❌ 不受影响 |
+
+> 排查服务端问题时**不需要把内置代理当成变量** —— 它在服务端侧不可见。
 
 ---
 
